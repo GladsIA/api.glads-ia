@@ -1,3 +1,3 @@
-import { handleGetBiddings } from '@/controllers/licitacoesController';
+import { handleGetBiddings } from '@/controllers/biddingsController';
 
 export { handleGetBiddings as GET };
