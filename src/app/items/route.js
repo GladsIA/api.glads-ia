@@ -20,5 +20,5 @@ export async function POST(req) {
         });
     } catch (error) {
         return NextResponse.json({ error: 'Erro ao processar o arquivo.' }, { status: 500 });
-    } 
+    }
 }
