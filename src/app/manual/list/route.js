@@ -1,4 +1,7 @@
 import { OpenAI } from 'openai';
+import { handleCors } from '@/controllers/corsControllers';
+
+export { handleCors as OPTIONS };
 
 export async function POST(req){
     const selectedApiKey = process.env.OPENAI_GENERAL_KEY;
