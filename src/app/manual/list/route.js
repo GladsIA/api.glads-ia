@@ -23,7 +23,12 @@ export async function POST(req){
             temperature: 0.0,
         });
         return new Response(JSON.stringify({ text: completion.choices[0]?.message?.content || '' }), {
-            headers: { 'Content-Type': 'application/json', }
+            headers: {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*", // Permite requisições de qualquer origem
+                "Access-Control-Allow-Methods": "POST, GET, OPTIONS", // Métodos permitidos
+                "Access-Control-Allow-Headers": "Content-Type", // Headers permitidos
+            },
         });
     }catch(error){
         console.error('Erro ao conectar à API da OpenAI: ', error);
