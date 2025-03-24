@@ -8,7 +8,12 @@ export async function POST(req){
     if(!selectedApiKey){
         return new Response(JSON.stringify({ error: 'Chave de API inválida ou não configurada' }), {
             status: 400,
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*", // Permite requisições de qualquer origem
+                "Access-Control-Allow-Methods": "POST, GET, OPTIONS", // Métodos permitidos
+                "Access-Control-Allow-Headers": "Content-Type", // Headers permitidos
+            },
         });
     }
     const body = await req.json();
