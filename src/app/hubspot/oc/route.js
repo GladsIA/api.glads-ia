@@ -1,31 +1,57 @@
 import crypto from 'crypto';
 import { NextResponse } from 'next/server';
 
-export async function POST(request){
-    const headers = Object.fromEntries(request.headers.entries());
+export async function POST(request) {
     const body = await request.text();
-    console.log('HUBSPOT → webhook HIT', { headers, body });
+    const headers = Object.fromEntries(request.headers.entries());
+
     const signature = headers['x-hubspot-signature-v3'];
     const timestamp = headers['x-hubspot-request-timestamp'];
-    console.log('HUBSPOT → signature', signature);
-    console.log('HUBSPOT → timestamp', timestamp);
     const clientSecret = process.env.AUTOMACAO_OC_APP_HUBSPOT_CLIENT_SECRET;
-    const baseString = `v3/${timestamp}/${body}`;
+
+    // --- CORREÇÃO DA URL PARA AMBIENTES DE TÚNEL (ngrok, etc.) ---
+    const currentUrl = new URL(request.url);
+    // O cabeçalho 'x-forwarded-host' é adicionado por proxies e túneis para indicar o host original.
+    const publicHost = headers['x-forwarded-host'] || currentUrl.host;
+    const correctUrl = `${currentUrl.protocol}//${publicHost}${currentUrl.pathname}${currentUrl.search}`;
+    // --- FIM DA CORREÇÃO ---
+    
+    // Agora, construa a baseString com a URL correta
+    const baseString = `${request.method}${correctUrl}${body}${timestamp}`;
+
     const hmac = crypto
         .createHmac('sha256', clientSecret)
         .update(baseString)
         .digest('base64');
-    console.log('HUBSPOT → hmac', hmac);
-    if(hmac !== signature){
+    
+    // Logs de verificação final
+    console.log('--- FINAL VERIFICATION ---');
+    console.log('Correct URL used for signature:', correctUrl);
+    console.log('HUBSPOT Received Signature:', signature);
+    console.log('GENERATED Local HMAC:    ', hmac); // Adicionei espaços para alinhar
+    console.log('Signatures Match?:', hmac === signature);
+    console.log('--------------------------');
+
+    if (hmac !== signature) {
+        // Mantenha a resposta de erro detalhada por enquanto
         return NextResponse.json(
-            { success: false, message: 'Invalid signature' },
+            { 
+                success: false, 
+                message: 'Invalid signature.',
+                details: {
+                    received: signature,
+                    generated: hmac,
+                    urlUsed: correctUrl
+                }
+            },
             { status: 401 }
         );
     }
+    
+    // Webhook válido!
+    console.log('Webhook validado com sucesso!');
     const parsed = JSON.parse(body);
-    console.log('Webhook válido →', parsed);
-    return NextResponse.json(
-        { success: true, message: 'Route successfully called' }, 
-        { status: 200 }
-    );
+    // ... sua lógica para processar os dados ...
+    
+    return NextResponse.json({ success: true, message: "Webhook validated!" }, { status: 200 });
 }
