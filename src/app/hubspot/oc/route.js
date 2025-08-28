@@ -26,9 +26,7 @@ export async function POST(request) {
             const objectDetails = await hubspotClient.crm.objects.basicApi.getById(
                 objectTypeId, // O tipo de objeto (ex: '0-48' para email, '0-49' para nota)
                 objectId,     // O ID do objeto específico
-                undefined,    // properties
-                undefined,    // propertiesWithHistory
-                ['file'],     // Pede para incluir associações com arquivos
+                ['hs_attachment_ids']     // Pede para incluir associações com arquivos
             );
             console.log('Detalhes do Objeto:', objectDetails);
             const attachments = objectDetails.associations?.files?.results;
