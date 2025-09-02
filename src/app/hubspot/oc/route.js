@@ -27,26 +27,41 @@ export async function POST(request) {
 
   const events = JSON.parse(body);
   for (const event of events) {
+    console.log('Webhook event recebido:', JSON.stringify(event, null, 2));
+
     if (event.subscriptionType !== 'object.creation') {
       console.log(`Evento ignorado (tipo: ${event.subscriptionType}).`);
       continue;
     }
 
     const objectId = event.objectId;
-    const objectTypeId = event.objectTypeId; // ex: 'emails' ou '0-48' dependendo do subscription
+    const objectTypeId = event.objectTypeId; // ex: 'emails', 'contacts', 'files', '0-48' etc
 
     try {
-      // busca o objeto pedindo properties e associations=files
-      const q = `/crm/v3/objects/${encodeURIComponent(objectTypeId)}?properties=hs_attachment_ids&associations=files`;
+      // Se o event for sobre FILES, use Files API diretamente
+      if (objectTypeId === 'files' || objectTypeId === 'file') {
+        console.log(`Evento sobre FILE detectado. Consultando Files API para ${objectId}`);
+        const fileResp = await hubspotFetch(`/files/v3/files/${encodeURIComponent(objectId)}`);
+        if (!fileResp.ok) {
+          console.error(`Erro ao buscar file ${objectId}: ${fileResp.status} -`, fileResp.body);
+          continue;
+        }
+        console.log(`File meta:`, JSON.stringify(fileResp.body, null, 2));
+        continue;
+      }
+
+      // Caso normal: buscar o objeto CRM pelo tipo _e_ id (IMPORTANTE: inclui objectId na URL)
+      const q = `/crm/v3/objects/${encodeURIComponent(objectTypeId)}/${encodeURIComponent(objectId)}?properties=hs_attachment_ids&associations=files`;
       const resp = await hubspotFetch(q, { method: 'GET' });
 
       if (!resp.ok) {
         console.error(`Erro ao buscar objeto ${objectId}: ${resp.status} -`, resp.body);
         continue;
       }
+
       console.log(`Detalhes do Objeto (REST) ${objectId}:`, JSON.stringify(resp.body, null, 2));
 
-      // 1) attachments pelas associations (mais confiável)
+      // 1) attachments pelas associations
       const attachmentsFromAssociations = resp.body?.associations?.files?.results;
       if (attachmentsFromAssociations && attachmentsFromAssociations.length > 0) {
         console.log(`Encontrados ${attachmentsFromAssociations.length} anexos (associations) para o objeto ${objectId}.`);
