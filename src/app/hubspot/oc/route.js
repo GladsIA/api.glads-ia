@@ -23,27 +23,52 @@ export async function POST(request) {
         const objectId = event.objectId;
         const objectTypeId = event.objectTypeId;
         try {
+            // Peça propriedades e também a associação 'files'
             const objectDetails = await hubspotClient.crm.objects.basicApi.getById(
-                objectTypeId, // O tipo de objeto (ex: '0-48' para email, '0-49' para nota)
-                objectId,     // O ID do objeto específico
-                ['hs_attachment_ids']     // Pede para incluir associações com arquivos
+                objectTypeId,            // tipo do objeto (ex: 'notes', 'emails', ou id tipo)
+                objectId,               // id do objeto
+                ['hs_attachment_ids'],  // properties
+                null,                   // propertiesWithHistory (null)
+                ['files']               // associations -> importante
             );
+
             console.log('Detalhes do Objeto:', objectDetails);
-            const attachments = objectDetails.associations?.files?.results;
-            if(attachments && attachments.length > 0){
-                console.log(`Encontrados ${attachments.length} anexos para o objeto ${objectId}.`);
-                for (const attachment of attachments) {
-                    const fileId = attachment.id;
-                    const fileDetails = await hubspotClient.files.files.filesApi.getById(fileId);
-                    const downloadUrl = fileDetails.url;
-                    console.log(`--> Anexo: '${fileDetails.name}', URL: ${downloadUrl}`);
+
+            // 1) Tenta usar associations retornadas (se existirem)
+            const attachmentsFromAssociations = objectDetails.associations?.files?.results;
+            if (attachmentsFromAssociations && attachmentsFromAssociations.length > 0) {
+                console.log(`Encontrados ${attachmentsFromAssociations.length} anexos (associations) para o objeto ${objectId}.`);
+                for (const att of attachmentsFromAssociations) {
+                const fileId = att.id;
+                // Use a Files API diretamente via apiRequest para garantir o endpoint
+                const fileMeta = await hubspotClient.apiRequest({ path: `/files/v3/files/${fileId}` });
+                console.log(`--> Anexo: '${fileMeta.name}', url: ${fileMeta.url || '(sem url direta)'}; full:`, fileMeta);
                 }
-            } else{
+                continue;
+            }
+
+            // 2) Se não vier associations, fallback para checar a propriedade hs_attachment_ids
+            const hsAttachmentIds = objectDetails?.properties?.hs_attachment_ids || '';
+            if (hsAttachmentIds) {
+                const ids = hsAttachmentIds.split(';').map(s => s.trim()).filter(Boolean);
+                console.log(`hs_attachment_ids: ${ids.join(', ')}`);
+                for (const fileId of ids) {
+                try {
+                    // Tenta gerar signed URL (recomendado para download)
+                    const signed = await hubspotClient.apiRequest({
+                    path: `/files/v3/files/${fileId}/signed-url?expirationSeconds=300`
+                    });
+                    console.log(`--> Anexo (from hs_attachment_ids): ${fileId} signed-url:`, signed.signedUrl || signed);
+                } catch (err) {
+                    console.error(`Erro ao obter file ${fileId}:`, err?.message || err);
+                }
+                }
+            } else {
                 console.log(`Nenhum anexo encontrado para o objeto ${objectId}.`);
             }
 
-        } catch(e){
-            console.error(`Erro ao processar o objeto ${objectId}:`, e.message || e);
+        } catch (e) {
+            console.error(`Erro ao processar o objeto ${objectId}:`, e?.message || e);
         }
     }
     return NextResponse.json(
