@@ -1,3 +1,5 @@
+export const runtime = 'nodejs';
+
 import { isValidHubspotSignature } from '@/lib/oc';
 import { Client } from '@hubspot/api-client';
 import { NextResponse } from 'next/server';
@@ -23,26 +25,22 @@ export async function POST(request) {
         const objectId = event.objectId;
         const objectTypeId = event.objectTypeId;
         try {
-            // Peça propriedades e também a associação 'files'
             const objectDetails = await hubspotClient.crm.objects.basicApi.getById(
-                objectTypeId,            // tipo do objeto (ex: 'notes', 'emails', ou id tipo)
+                objectTypeId,           // tipo do objeto (ex: 'notes', 'emails', ou id tipo)
                 objectId,               // id do objeto
                 ['hs_attachment_ids'],  // properties
                 null,                   // propertiesWithHistory (null)
                 ['files']               // associations -> importante
             );
-
             console.log('Detalhes do Objeto:', objectDetails);
-
-            // 1) Tenta usar associations retornadas (se existirem)
             const attachmentsFromAssociations = objectDetails.associations?.files?.results;
-            if (attachmentsFromAssociations && attachmentsFromAssociations.length > 0) {
+            if(attachmentsFromAssociations && attachmentsFromAssociations.length > 0){
                 console.log(`Encontrados ${attachmentsFromAssociations.length} anexos (associations) para o objeto ${objectId}.`);
                 for (const att of attachmentsFromAssociations) {
-                const fileId = att.id;
-                // Use a Files API diretamente via apiRequest para garantir o endpoint
-                const fileMeta = await hubspotClient.apiRequest({ path: `/files/v3/files/${fileId}` });
-                console.log(`--> Anexo: '${fileMeta.name}', url: ${fileMeta.url || '(sem url direta)'}; full:`, fileMeta);
+                    const fileId = att.id;
+                    // Use a Files API diretamente via apiRequest para garantir o endpoint
+                    const fileMeta = await hubspotClient.apiRequest({ path: `/files/v3/files/${fileId}` });
+                    console.log(`--> Anexo: '${fileMeta.name}', url: ${fileMeta.url || '(sem url direta)'}; full:`, fileMeta);
                 }
                 continue;
             }
@@ -56,14 +54,14 @@ export async function POST(request) {
                 try {
                     // Tenta gerar signed URL (recomendado para download)
                     const signed = await hubspotClient.apiRequest({
-                    path: `/files/v3/files/${fileId}/signed-url?expirationSeconds=300`
+                        path: `/files/v3/files/${fileId}/signed-url?expirationSeconds=300`
                     });
                     console.log(`--> Anexo (from hs_attachment_ids): ${fileId} signed-url:`, signed.signedUrl || signed);
-                } catch (err) {
+                } catch(err){
                     console.error(`Erro ao obter file ${fileId}:`, err?.message || err);
                 }
                 }
-            } else {
+            } else{
                 console.log(`Nenhum anexo encontrado para o objeto ${objectId}.`);
             }
 
