@@ -1,12 +1,14 @@
 import crypto from 'crypto';
 
+const HUBSPOT_TOKEN = process.env.AUTOMACAO_OC_APP_HUBSPOT_TOKEN;
+
 export async function isValidHubspotSignature(request, body) {
     const headers = Object.fromEntries(request.headers.entries());
     const signature = headers['x-hubspot-signature-v3'];
     const timestamp = headers['x-hubspot-request-timestamp'];
     const clientSecret = process.env.AUTOMACAO_OC_APP_HUBSPOT_CLIENT_SECRET;
     if (!signature || !timestamp || !clientSecret) {
-        console.error('Missing HubSpot signature headers or client secret.');
+        console.error('Cabeçalhos de assinatura do HubSpot ou segredo do cliente ausentes.');
         return false;
     }
     const currentUrl = new URL(request.url);
@@ -19,54 +21,111 @@ export async function isValidHubspotSignature(request, body) {
         .digest('base64');
     const isValid = crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(hmac));
     if(!isValid){
-        console.warn('HubSpot signature validation failed.');
-        console.log('Correct URL used for signature:', correctUrl);
-        console.log('HUBSPOT Received Signature:', signature);
-        console.log('GENERATED Local HMAC:', hmac);
+        console.warn('Falha na validação da assinatura do HubSpot.');
+        console.log('URL usada para assinatura:', correctUrl);
+        console.log('Assinatura recebida do HubSpot:', signature);
+        console.log('HMAC local gerado:', hmac);
     }
     return isValid;
 }
 
-export async function processHubspotEvent(hubspotClient, event) {
-    if(event.subscriptionType !== 'object.creation') {
+export async function processEvent(event) {
+    console.log('Processando evento:', JSON.stringify(event, null, 2));
+    if (event.subscriptionType !== 'object.creation') {
         console.log(`Evento ignorado (tipo: ${event.subscriptionType}).`);
         return;
     }
+    const { objectId, objectTypeId } = event;
     try {
-        const objectDetails = await getObjectDetails(hubspotClient, event);
-        const attachments = objectDetails.associations?.files?.results;
-        if(attachments && attachments.length > 0) {
-            console.log(`Encontrados ${attachments.length} anexos para o objeto ${event.objectId}.`);
-            await Promise.all(
-                attachments.map(attachment => processAttachment(hubspotClient, attachment))
-            );
+        if(objectTypeId === 'files' || objectTypeId === 'file') {
+            await processFileEvent(objectId);
         } else {
-            console.log(`Nenhum anexo encontrado para o objeto ${event.objectId}.`);
+            await processCrmObject(objectId, objectTypeId);
         }
-    } catch (e) {
-        console.error(`Erro ao processar o objeto ${event.objectId}:`, e.message || e);
-    }
-}
-
-async function getObjectDetails(hubspot, event) {
-    try {
-        const objectId = event.objectId;
-        const objectTypeId = event.objectTypeId;
-        const objectDetails = await hubspot.crm.objects.basicApi.getById(objectTypeId, objectId, ['hs_attachment_ids']);
-        console.log('Detalhes do Objeto:', objectDetails);
-        return objectDetails;
     } catch(err) {
-        throw new Error(`getObjectDetails failed: ${err?.message || err}`);
+        console.error(`Erro inesperado ao processar o objeto ${objectId}:`, err?.stack || err);
     }
 }
 
-async function processAttachment(hubspotClient, attachment) {
+async function processFileEvent(fileId) {
+    console.log(`Evento de FILE detectado. Consultando Files API para ${fileId}`);
+    const fileResp = await hubspotFetch(`/files/v3/files/${encodeURIComponent(fileId)}`);
+    if(!fileResp.ok) {
+        console.error(`Erro ao buscar file ${fileId}: ${fileResp.status} -`, fileResp.body);
+        return;
+    }
+    console.log(`Metadados do File:`, JSON.stringify(fileResp.body, null, 2));
+}
+
+async function processCrmObject(objectId, objectTypeId) {
+    const path = `/crm/v3/objects/${encodeURIComponent(objectTypeId)}/${encodeURIComponent(objectId)}?properties=hs_attachment_ids&associations=files`;
+    const resp = await hubspotFetch(path);
+    if(!resp.ok) {
+        console.error(`Erro ao buscar objeto ${objectTypeId}/${objectId}: ${resp.status} -`, resp.body);
+        return;
+    }
+    console.log(`Detalhes do Objeto ${objectTypeId}/${objectId}:`, JSON.stringify(resp.body, null, 2));
+    const crmObject = resp.body;
+    const attachmentsFromAssociations = crmObject?.associations?.files?.results;
+    const hsAttachmentIds = crmObject?.properties?.hs_attachment_ids;
+    if(attachmentsFromAssociations && attachmentsFromAssociations.length > 0) {
+        await processAttachmentsFromAssociations(attachmentsFromAssociations);
+    } 
+    else if(hsAttachmentIds) {
+        await processAttachmentsFromProperty(hsAttachmentIds);
+    } else {
+        console.log(`Nenhum anexo encontrado para o objeto ${objectId}.`);
+    }
+}
+
+async function hubspotFetch(path, opts = {}) {
+    const url = `https://api.hubapi.com${path}`;
+    const res = await fetch(url, {
+        headers: {
+            'Authorization': `Bearer ${HUBSPOT_TOKEN}`,
+            'Content-Type': 'application/json'
+        },
+        ...opts
+    });
+    const text = await res.text();
     try {
-        const fileId = attachment.id;
-        const fileDetails = await hubspotClient.files.files.filesApi.getById(fileId);
-        const downloadUrl = fileDetails.url;
-        console.log(`--> Anexo encontrado: '${fileDetails.name}', URL: ${downloadUrl}`);
-    } catch(e) {
-        console.error(`Erro ao processar o anexo ID ${attachment.id}:`, e.message || e);
+        return { 
+            ok: res.ok, 
+            status: res.status, 
+            body: JSON.parse(text) 
+        };
+    } catch {
+        return { 
+            ok: res.ok, 
+            status: res.status, 
+            body: text 
+        };
+    }
+}
+
+async function processAttachmentsFromAssociations(attachments) {
+    console.log(`Encontrados ${attachments.length} anexos (via associations).`);
+    for(const att of attachments) {
+        const fileId = att.id;
+        const fileResp = await hubspotFetch(`/files/v3/files/${fileId}`);
+        if(!fileResp.ok) {
+            console.error(`Erro ao buscar metadados do file ${fileId}: ${fileResp.status} -`, fileResp.body);
+            continue;
+        }
+        console.log(`--> Anexo (assoc): id=${fileId}, name='${fileResp.body.name}', url=${fileResp.body.url || '(sem url)'}`);
+    }
+}
+
+async function processAttachmentsFromProperty(attachmentIdsString) {
+    const ids = attachmentIdsString.split(';').map(s => s.trim()).filter(Boolean);
+    if(ids.length === 0) return;
+    console.log(`Encontrados ${ids.length} anexos (via hs_attachment_ids): ${ids.join(', ')}`);
+    for(const fileId of ids) {
+        const signedResp = await hubspotFetch(`/files/v3/files/${fileId}/signed-url?expirationSeconds=300`);
+        if (!signedResp.ok) {
+            console.error(`Erro ao obter signed-url para o file ${fileId}: ${signedResp.status} -`, signedResp.body);
+            continue;
+        }
+        console.log(`--> URL assinada para ${fileId}:`, signedResp.body.signedUrl || signedResp.body);
     }
 }
