@@ -1,13 +1,13 @@
 import crypto from 'crypto';
 
-const HUBSPOT_TOKEN = process.env.AUTOMACAO_OC_APP_HUBSPOT_TOKEN;
+const HUBSPOT_CLIENT_SECRET = process.envAUTOMACAO_OC_APP_HUBSPOT_CLIENT_SECRET;
+const HUBSPOT_ACCESS_TOKEN = process.env.AUTOMACAO_OC_APP_HUBSPOT_ACCESS_TOKEN;
 
 export async function isValidHubspotSignature(request, body) {
     const headers = Object.fromEntries(request.headers.entries());
     const signature = headers['x-hubspot-signature-v3'];
     const timestamp = headers['x-hubspot-request-timestamp'];
-    const clientSecret = process.env.AUTOMACAO_OC_APP_HUBSPOT_CLIENT_SECRET;
-    if (!signature || !timestamp || !clientSecret) {
+    if (!signature || !timestamp || !HUBSPOT_CLIENT_SECRET) {
         console.error('Cabeçalhos de assinatura do HubSpot ou segredo do cliente ausentes.');
         return false;
     }
@@ -16,7 +16,7 @@ export async function isValidHubspotSignature(request, body) {
     const correctUrl = `${currentUrl.protocol}//${publicHost}${currentUrl.pathname}${currentUrl.search}`;
     const baseString = `${request.method}${correctUrl}${body}${timestamp}`;
     const hmac = crypto
-        .createHmac('sha256', clientSecret)
+        .createHmac('sha256', HUBSPOT_CLIENT_SECRET)
         .update(baseString)
         .digest('base64');
     const isValid = crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(hmac));
@@ -82,7 +82,7 @@ async function hubspotFetch(path, opts = {}) {
     const url = `https://api.hubapi.com${path}`;
     const res = await fetch(url, {
         headers: {
-            'Authorization': `Bearer ${HUBSPOT_TOKEN}`,
+            'Authorization': `Bearer ${HUBSPOT_ACCESS_TOKEN}`,
             'Content-Type': 'application/json'
         },
         ...opts
