@@ -4,7 +4,7 @@ export async function isValidHubspotSignature(request, body) {
     const headers = Object.fromEntries(request.headers.entries());
     const signature = headers['x-hubspot-signature-v3'];
     const timestamp = headers['x-hubspot-request-timestamp'];
-    const HUBSPOT_CLIENT_SECRET = process.envAUTOMACAO_OC_APP_HUBSPOT_CLIENT_SECRET;
+    const HUBSPOT_CLIENT_SECRET = process.env.AUTOMACAO_OC_APP_HUBSPOT_CLIENT_SECRET;
     if (!signature || !timestamp || !HUBSPOT_CLIENT_SECRET) {
         console.error('Cabeçalhos de assinatura do HubSpot ou segredo do cliente ausentes.');
         return false;
