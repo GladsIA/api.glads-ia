@@ -26,3 +26,47 @@ export async function isValidHubspotSignature(request, body) {
     }
     return isValid;
 }
+
+export async function processHubspotEvent(hubspotClient, event) {
+    if(event.subscriptionType !== 'object.creation') {
+        console.log(`Evento ignorado (tipo: ${event.subscriptionType}).`);
+        return;
+    }
+    try {
+        const objectDetails = await getObjectDetails(hubspotClient, event);
+        const attachments = objectDetails.associations?.files?.results;
+        if(attachments && attachments.length > 0) {
+            console.log(`Encontrados ${attachments.length} anexos para o objeto ${event.objectId}.`);
+            await Promise.all(
+                attachments.map(attachment => processAttachment(hubspotClient, attachment))
+            );
+        } else {
+            console.log(`Nenhum anexo encontrado para o objeto ${event.objectId}.`);
+        }
+    } catch (e) {
+        console.error(`Erro ao processar o objeto ${event.objectId}:`, e.message || e);
+    }
+}
+
+async function getObjectDetails(hubspot, event) {
+    try {
+        const objectId = event.objectId;
+        const objectTypeId = event.objectTypeId;
+        const objectDetails = await hubspot.crm.objects.basicApi.getById(objectTypeId, objectId, ['hs_attachment_ids']);
+        console.log('Detalhes do Objeto:', objectDetails);
+        return objectDetails;
+    } catch(err) {
+        throw new Error(`getObjectDetails failed: ${err?.message || err}`);
+    }
+}
+
+async function processAttachment(hubspotClient, attachment) {
+    try {
+        const fileId = attachment.id;
+        const fileDetails = await hubspotClient.files.files.filesApi.getById(fileId);
+        const downloadUrl = fileDetails.url;
+        console.log(`--> Anexo encontrado: '${fileDetails.name}', URL: ${downloadUrl}`);
+    } catch(e) {
+        console.error(`Erro ao processar o anexo ID ${attachment.id}:`, e.message || e);
+    }
+}
