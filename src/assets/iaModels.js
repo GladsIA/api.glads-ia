@@ -1,4 +1,15 @@
 export const IA_MODELS = {
+    openaiEmbeddings: {
+        ['3']: {
+            // Preço: 0.02
+            // Tamanho do vetor: 1536
+            small: 'text-embedding-3-small',
+
+            // Preço: 0.13
+            // Tamanho do vetor: 3072
+            large: 'text-embedding-3-large'
+        }
+    },
     gpt: {
         // GPT 5.1
         // Janela de contexto: 400.000 tokens

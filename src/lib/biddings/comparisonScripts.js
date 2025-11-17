@@ -1,4 +1,4 @@
-import { getGptResponse } from '@/lib/gptScripts';
+import { getGptResponse } from '@/lib/openaiScripts';
 
 function getComparisonPrompt(item, product) {
     return `

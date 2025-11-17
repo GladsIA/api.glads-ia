@@ -16,3 +16,13 @@ export async function getGptResponse({
         max_output_tokens: maxOutputTokens,
     });
 }
+
+export async function getEmbeddingResponse({
+    model = IA_MODELS.openaiEmbeddings['3'].small,
+    input
+}){
+    return await client.embeddings.create({
+        model: model,
+        input: input,
+    });
+}
