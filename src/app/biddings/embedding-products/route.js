@@ -1,10 +1,7 @@
 import { NextResponse } from 'next/server';
 import { upsertRows } from '@/supabase/crud';
-import { buildProductRows } from '@/lib/biddings/embeddingScripts';
 import { processInBatches } from '@/lib/utils/batchScripts';
-
-// Rota para embeddar o item para ser comparado com os embeddings dos produtos
-// Funções de busca de n mais parecidos
+import { buildProductRows } from '@/lib/biddings/productsScripts';
 
 const idClient = '36c88f95-b4fa-4512-8380-a16fc4f2af1b';
 
@@ -23,7 +20,7 @@ export async function POST(req) {
             console.log(`Processando batch ${batchNumber} com ${productsBatch.length} produtos...`);
             const rows = await buildProductRows(idClient, productsBatch);
             await upsertRows({
-                table: 'autBiddings-productEmbeddings',
+                table: 'autBiddings-products',
                 rows,
                 onConflict: 'idProduct'
             });
