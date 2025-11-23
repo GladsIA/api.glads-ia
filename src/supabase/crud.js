@@ -1,6 +1,21 @@
 import { supabase } from '@/supabase/client';
 import { withRetry } from '@/lib/utils/retryScripts';
 
+export async function getSimilarEmbeddings({
+    funcName,
+    embedding,
+    minSimilarity = 0.7
+}){
+    const { data, error } = await supabase.rpc(
+        funcName, {
+            item_embedding: embedding,
+            min_similarity: minSimilarity
+        }
+    );
+    if(error) throw error;
+    return data;
+}
+
 export async function upsertRows({
     table,
     rows = [],

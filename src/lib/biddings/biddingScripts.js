@@ -4,11 +4,13 @@ import { getEmbeddingResponse } from '@/lib/openaiScripts';
 export async function buildBiddingRows(idBulletin, biddings) {
     const rows = await Promise.all(
         biddings.map(async bidding => {
-            const items = bidding.item.split('\n').filter(i => i.trim() !== '');
-            const itemsEmbeddings = [];
-            for(const item of items) {
+            const rawItems = bidding.item
+                .split('\n')
+                .filter(i => i.trim() !== '');
+            const items = [];
+            for(const text of rawItems) {
                 const embeddingResponse = await withRetry(
-                    () => getEmbeddingResponse({ input: item }),
+                    () => getEmbeddingResponse({ input: text }),
                     {
                         retries: 4,
                         retryOn: [429, 500],
@@ -16,7 +18,7 @@ export async function buildBiddingRows(idBulletin, biddings) {
                     }
                 );
                 const embedding = embeddingResponse.data[0].embedding;
-                itemsEmbeddings.push(embedding);
+                items.push({ text, embedding });
             }
             return {
                 idBulletin,
@@ -33,7 +35,6 @@ export async function buildBiddingRows(idBulletin, biddings) {
                 datetimeOpening: bidding.datahora_abertura,
                 datetimeDeadline: bidding.datahora_prazo,
                 items,
-                itemsEmbeddings,
                 valueEstimated: bidding.valor_estimado,
                 urlDocuments: bidding.documento
             };
