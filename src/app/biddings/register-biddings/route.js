@@ -23,7 +23,7 @@ export async function POST(req) {
             rows,
             onConflict: 'idConlicitacao'
         });
-        return NextResponse.json({ success: true }, { status: 200 });
+        return NextResponse.json({ biddings: rows }, { status: 200 });
     } catch(err) {
         console.error('Erro geral:', err);
         return NextResponse.json(
