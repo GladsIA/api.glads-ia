@@ -1,5 +1,6 @@
-import { getSimilarEmbeddings } from '@/supabase/crud';
 import { NextResponse } from 'next/server';
+import { getSimilarEmbeddings } from '@/supabase/crud';
+import { getAllComparisons } from '@/lib/biddings/comparisonScripts';
 
 export async function POST(req) {
     try {
@@ -10,21 +11,34 @@ export async function POST(req) {
                 { status: 400 }
             );
         }
-        const embeddings = bidding.itemsEmbeddings;
-        embeddings.map(async embedding => {
-            const products = await getSimilarEmbeddings({
-                funcName: 'get_similar_products',
-                embedding: embedding,
-            });
-            
+        const results = [];
+        await Promise.all(
+            bidding.items.map(async (item, i) => {
+                const products = await getSimilarEmbeddings({
+                    funcName: 'get_similar_products',
+                    embedding: item.embedding,
+                });
+                const comparisons = await getAllComparisons(item, products);
+                comparisons.map((comparison, j) => {
+                    results.push({
+                        idBulletin: bidding.idBulletin,
+                        idBidding: bidding.id,
+                        itemIndex: i,
+                        item: item.text,
+                        idProduct: products[j].idProduct,
+                        product: products[j].content,
+                        embeddingSimilarity: products[j].similarity,
+                        finalSimilarity: comparison.finalSimilarity,
+                        differences: comparison.differences,
+                        conclusion: comparison.conclusion
+                    });
+                })
+            })
+        );
+        return NextResponse.json({
+            ok: true,
+            results
         });
-
-        // return NextResponse.json({
-        // ok: true,
-        // mensagem: 'Embeddings processados com sucesso',
-        // total: resultados.length,
-        // resultados
-        // });
     } catch (err) {
         console.error(err);
         return NextResponse.json(

@@ -16,25 +16,42 @@ export async function getSimilarEmbeddings({
     return data;
 }
 
+export async function insertRow({
+    table,
+    row
+}){
+    return withRetry(async () => {
+        const { data, error } = await supabase
+            .from(table)
+            .insert(row)
+            .select();
+        if(error) throw error;
+        return data?.[0] ?? true;
+    },{
+        retries: 4,
+        retryOn: ['22P02', '40001', '53300'],
+        baseDelay: 700
+    });
+}
+
 export async function upsertRows({
     table,
     rows = [],
     onConflict
 }){
-    return withRetry(
-        async () => {
-            const { error } = await supabase
-                .from(table)
-                .upsert(rows, { onConflict });
-            if(error) throw error;
-            return true;
-        },{
-            retries: 4,
-            retryOn: ['22P02', '40001', '53300'], 
-            // 22P02: input inválido momentâneo
-            // 40001: serialization error
-            // 53300: too many connections
-            baseDelay: 700
-        }
-    );
+    return withRetry(async () => {
+        const { error } = await supabase
+            .from(table)
+            .upsert(rows, { onConflict });
+        if(error) throw error;
+        return true;
+    },{
+        retries: 4,
+        retryOn: ['22P02', '40001', '53300'], 
+        baseDelay: 700
+    });
 }
+
+// 22P02: input inválido momentâneo
+// 40001: serialization error
+// 53300: too many connections
