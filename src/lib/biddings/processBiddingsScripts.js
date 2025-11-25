@@ -11,7 +11,6 @@ export async function initProcessBiddings(insertedBiddings) {
 }
 
 async function insertComparisonRows(rows) {
-    console.log('ROWS BEFORE INSERT:', JSON.stringify(rows, null, 2));
     return await upsertRows({
         table: 'autBiddings-comparisons',
         rows
