@@ -4,7 +4,7 @@ import { upsertRows } from '@/supabase/crud';
 
 export async function insertBiddingRows(idBulletin, biddings) {
     const rows = await buildBiddingRows(idBulletin, biddings);
-    await upsertRows({
+    return await upsertRows({
         table: 'autBiddings-biddings',
         rows,
         onConflict: 'idConlicitacao'

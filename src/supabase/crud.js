@@ -40,11 +40,12 @@ export async function upsertRows({
     onConflict
 }){
     return withRetry(async () => {
-        const { error } = await supabase
+        const { data, error } = await supabase
             .from(table)
-            .upsert(rows, { onConflict });
+            .upsert(rows, { onConflict })
+            .select();
         if(error) throw error;
-        return true;
+        return data;
     },{
         retries: 4,
         retryOn: ['22P02', '40001', '53300'], 
