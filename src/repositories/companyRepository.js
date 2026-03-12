@@ -1,20 +1,20 @@
 import { insertRow, updateRow, findOne } from '@/supabase/crud';
 
-export const companyRepository = {
+export class CompanyRepository {
   
     async create(company) {
         return await insertRow({
             table: 'companies',
             row: company.toDatabase()
         });
-    },
+    }
 
     async findById(id) {
         return await findOne({
             table: 'companies',
             match: { id }
         });
-    },
+    }
 
     async update(id, data) {
         return await updateRow({
@@ -22,5 +22,5 @@ export const companyRepository = {
             match: { id },
             row: data
         });
-    },
+    }
 };

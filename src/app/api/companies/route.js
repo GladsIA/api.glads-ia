@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { Company } from '@/entities/companies/Company';
-import { companyRepository } from '@/repositories/companyRepository';
+import { CompanyRepository } from '@/repositories/companyRepository';
 
 export async function POST(req) {
     try {
@@ -13,6 +13,7 @@ export async function POST(req) {
             );
         }
         const company = new Company({ name, cnpj });
+        const companyRepository = new CompanyRepository();
         const data = await companyRepository.create(company);
         const savedCompany = Company.fromDatabase(data);
         return NextResponse.json(
