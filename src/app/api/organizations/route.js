@@ -5,7 +5,8 @@ import { OrganizationRepository } from '@/repositories/OrganizationRepository';
 export async function GET() {
     try {
         const organizationRepository = new OrganizationRepository();
-        const organizations = await organizationRepository.findMany();
+        const data = await organizationRepository.findMany();
+        const organizations = data.map(o => Organization.fromDatabase(o));
         return NextResponse.json(
             { organizations },
             { status: 200 }
