@@ -1,19 +1,19 @@
 {
-    "name": "api.gladsia",
-    "version": "0.1.0",
-    "private": true,
-    "scripts": {
-        "dev": "next dev --turbopack",
-        "build": "next build",
-        "start": "next start",
-        "lint": "next lint"
-    },
-    "dependencies": {
-        "@hubspot/api-client": "^13.1.0",
-        "@supabase/supabase-js": "^2.49.1",
-        "next": "15.2.3",
-        "openai": "^4.89.0",
-        "react": "^19.0.0",
-        "react-dom": "^19.0.0"
-    }
+  "name": "api.gladsia",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@hubspot/api-client": "^13.1.0",
+    "@supabase/supabase-js": "^2.49.1",
+    "next": "15.2.8",
+    "openai": "^4.89.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
 }
