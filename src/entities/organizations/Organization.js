@@ -1,6 +1,6 @@
 import { BaseEntity } from '@/entities/BaseEntity';
 
-export class Company extends BaseEntity {
+export class Organization extends BaseEntity {
     constructor({ name, cnpj }) {
         super();
         this.name = name;
